@@ -2,8 +2,9 @@ const AccessCode = require('./database/models/AccessCode');
 const User = require('./database/models/User');
 const { isValidPhoneNumber } = require('./inputValidation');
 
-const getUnusedAccessCode = async () => {
-  const unusedAccessCode = await AccessCode.findOne({ isUsed: false });
+const getUnusedAccessCode = async (amount) => {
+  console.log('Value: ', amount)
+  const unusedAccessCode = await AccessCode.findOne({ value: amount });
   if (!unusedAccessCode) {
     throw new Error('No unused access codes available');
   }

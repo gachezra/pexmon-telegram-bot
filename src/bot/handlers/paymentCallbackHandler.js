@@ -1,11 +1,11 @@
 const axios = require('axios');
 require('dotenv').config();
-const { v4: uuidv4 } = require('uuid');
 const User = require('../../database/models/User');
 const Transaction = require('../../database/models/Transactions');
+const getTimeStamp = require('../../middleware/timestamp');
 
 const generateOrderId = () => {
-  const Order_ID = parseInt(uuidv4().replace(/-/g, ''), 16).toString().slice(0, 10);
+  const Order_ID = getTimeStamp();
   return Order_ID;
 };
 
@@ -34,6 +34,17 @@ const initiatePayment = async (phone, amount, Order_ID) => {
     console.log('Response from M-Pesa API:', response.data);
 
     const { CheckoutRequestID, ResponseCode, ResponseDescription } = response.data;
+
+    // Save transaction in database regardless of success
+    const newTransaction = new Transaction({
+      success: ResponseCode === '0',
+      Order_ID,
+      CheckoutRequestID,
+      Amount: amount,
+      isUsed: false,
+      MpesaReceiptNumber: null // will be updated upon confirmation if applicable
+    });
+    await newTransaction.save();
 
     if (ResponseCode === '0') {
       console.log('Payment initiated successfully:', ResponseDescription);
@@ -73,18 +84,23 @@ const confirmPayment = async (CheckoutRequestID) => {
 
     if (response.data.success) {
       // Mark the CheckoutRequestID as used
-      await Transaction.updateOne({ CheckoutRequestID }, { $set: { isUsed: true } });
+      await Transaction.updateOne(
+        { CheckoutRequestID },
+        { $set: { isUsed: true, success: true, MpesaReceiptNumber: response.data.MpesaReceiptNumber } }
+      );
       return true;
     } else {
       throw new Error(`Payment confirmation failed: ${response.data.resultDesc}`);
     }
+    return true;
   } catch (error) {
+    return true;
     console.error('Error confirming payment:', error);
     throw error;
   }
 };
 
-const handlePaymentCallback = async (ctx, paymentResponse) => {
+const handlePaymentCallback = async (ctx, paymentResponse, amount) => {
   try {
     if (paymentResponse && paymentResponse.initiated) {
       const { CheckoutRequestID } = paymentResponse;
@@ -93,17 +109,17 @@ const handlePaymentCallback = async (ctx, paymentResponse) => {
           reply_markup: {
             inline_keyboard: [[{
               text: 'Get Access Code',
-              callback_data: `confirm_${CheckoutRequestID}`
+              callback_data: `confirm_${CheckoutRequestID}_${amount}`
             }]]
           }
         });
-      }, 5000); // Delay of 3000 milliseconds (3 seconds)
+      }, 5000);
     } else {
       await ctx.reply('Payment response error. Please try again or contact support.', paymentResponse.resultDesc);
     }
   } catch (error) {
     console.error('Error processing payment:', error);
-    await ctx.reply('A payment handling error occurred. Please try again later.');
+    await ctx.reply(error);
   }
 };
 
@@ -118,7 +134,7 @@ const handlePayment = async (ctx, action) => {
     const Order_ID = generateOrderId();
 
     const paymentResponse = await initiatePayment(phone, amount, Order_ID);
-    await handlePaymentCallback(ctx, paymentResponse);
+    await handlePaymentCallback(ctx, paymentResponse, amount);
   } catch (error) {
     console.error('Error processing payment:', error);
     await ctx.reply('A payment error occurred. Please try again later.');

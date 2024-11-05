@@ -8,6 +8,10 @@ try {
       required: true,
       unique: true 
     },
+    value: {
+      type: String,
+      required: true,
+    },
     isUsed: { 
       type: Boolean, 
       default: false 
