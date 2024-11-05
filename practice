@@ -1,0 +1,169 @@
+const express = require('express');
+const expressApp = express();
+const axios = require("axios");
+const path = require("path");
+
+const port = process.env.PORT || 3000;
+
+expressApp.use(express.static('static'));
+expressApp.use(express.json());
+
+require('dotenv').config();
+
+const TelegramBot = require('node-telegram-bot-api');
+
+// Replace 'YOUR_BOT_TOKEN' with your actual bot token
+const bot = new TelegramBot('BOT_TOKEN', { polling: true });
+
+expressApp.get("/", (req, res) => {
+res.sendFile(path.join(__dirname + '/index.html'));
+});
+
+bot.command('start', ctx => {
+console.log(ctx.from)
+bot.telegram.sendMessage(
+    ctx.chat.id, 
+    'Hello there! Welcome to Pexmon wifi share telegram bot.\nI respond to /wifi for link or /button for buttons. Please try it', {})
+})
+bot.command('wifi', ctx => {
+console.log(ctx.from)
+bot.telegram.sendMessage(ctx.chat.id, 'Hello there, there are three packages.\n\n /half_day package for Ksh.50 \n /full_day package for Ksh.100 \n /2_day_discount package for Ksh.150 \n\n\n You can also check the price of ethereum through /ethereum', {
+})
+})
+bot.command('button', ctx => {
+    const chatId = msg.chat.id;
+
+    // Define your inline keyboard
+    const keyboard = {
+        inline_keyboard: [
+            [
+                { text: 'Button 1', callback_data: 'button1' },
+                { text: 'Button 2', callback_data: 'button2' }
+            ],
+            [
+                { text: 'Button 3', callback_data: 'button3' },
+                { text: 'Button 4', callback_data: 'button4' }
+            ]
+        ]
+    };
+
+    // Send a message with the inline keyboard
+    bot.sendMessage(chatId, 'Choose an option:', {
+        reply_markup: JSON.stringify(keyboard)
+    });
+})
+bot.command('ethereum', ctx => {
+var rate;
+console.log(ctx.from)
+axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd`)
+.then(response => {
+console.log(response.data)
+rate = response.data.ethereum
+const message = `Hello, today the ethereum price is ${rate.usd}USD`
+bot.telegram.sendMessage(ctx.chat.id, message, {
+})
+})
+})
+    
+
+bot.launch()
+
+
+const TelegramBot = require('node-telegram-bot-api');
+const Mpesa = require('mpesa-node');
+require('dotenv').config();
+
+const token = process.env.BOT_TOKEN;
+const bot = new TelegramBot(token, { polling: true });
+
+// Initialize M-Pesa instance
+const mpesa = new Mpesa({
+    consumerKey: process.env.MPESA_CONSUMER_KEY,
+    consumerSecret: process.env.MPESA_CONSUMER_SECRET,
+    environment: 'sandbox',
+});
+
+// Map to store user phone numbers
+const userPhoneNumbers = new Map();
+
+bot.on('message', (msg) => {
+    const chatId = msg.chat.id;
+    const messageText = msg.text;
+
+    if (messageText === '/start') {
+        // Prompt the user to provide their phone number
+        bot.sendMessage(chatId, 'Please provide your phone number:');
+    }
+});
+
+// Handle user phone number input
+bot.onText(/\/setphone (.+)/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const phoneNumber = match[1];
+
+    // Store the user's phone number
+    userPhoneNumbers.set(chatId, phoneNumber);
+
+    // Send message confirming the phone number is set
+    bot.sendMessage(chatId, `Your phone number (${phoneNumber}) has been set.`);
+});
+
+// Handle button clicks
+bot.on('callback_query', async (callbackQuery) => {
+    const action = callbackQuery.data;
+    const msg = callbackQuery.message;
+    const chatId = msg.chat.id;
+    let phoneNumber;
+    let amount;
+
+    // Get the user's phone number
+    if (userPhoneNumbers.has(chatId)) {
+        phoneNumber = userPhoneNumbers.get(chatId);
+    } else {
+        bot.sendMessage(chatId, 'Please set your phone number first using /setphone command.');
+        return;
+    }
+
+    // Determine amount based on the selected tariff
+    switch (action) {
+        case 'half_day':
+            amount = 50;
+            break;
+        case 'full_day':
+            amount = 100;
+            break;
+        case 'two_day_discount':
+            amount = 150;
+            break;
+        default:
+            bot.sendMessage(chatId, 'Invalid selection');
+            return;
+    }
+
+    // Call M-Pesa SDK function to initiate payment
+    try {
+        const result = await mpesa.lipaNaMpesaOnline({
+            phoneNumber,
+            amount,
+            accountReference: 'Your account reference',
+            transactionDesc: 'Transaction description',
+            callBackURL: 'Your callback URL',
+        });
+
+        // Respond with payment successful message and random hex characters
+        bot.sendMessage(chatId, `Payment successful! Random hex characters: ${generateRandomHex(10)}`);
+    } catch (error) {
+        console.error('Payment error:', error);
+        bot.sendMessage(chatId, 'Payment failed. Please try again later.');
+    }
+});
+
+// Function to generate random hex characters
+function generateRandomHex(length) {
+    const characters = '0123456789ABCDEF';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+}
