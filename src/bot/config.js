@@ -3,7 +3,7 @@ require('dotenv').config();
 const config = {
   botToken: process.env.BOT_TOKEN,
   tariffs: [
-    { label: 'Half Day (KES 50)', value: 1 },
+    { label: 'Half Day (KES 50)', value: 50 },
     { label: 'Full Day (KES 100)', value: 100 },
     { label: '2 Day Discount (KES 150)', value: 150 },
   ],

@@ -16,10 +16,6 @@ module.exports.initiateSTKPush = async(req, res) => {
         const password = Buffer.from(process.env.BUSINESS_SHORT_CODE + process.env.PASS_KEY + timestamp).toString('base64');
         const callback_url = `${process.env.APP_URL}/api/stkPushCallback/${Order_ID}`;
 
-        console.log("callback ", callback_url);
-        console.log("Amount being sent to API: ", amount);
-        console.log("Phone number being sent to API: ", phone);
-        console.log("OderId being sent to API: ", Order_ID);
         request({
             url: url,
             method: "POST",
@@ -36,8 +32,8 @@ module.exports.initiateSTKPush = async(req, res) => {
                 "PartyB": process.env.BUSINESS_SHORT_CODE,
                 "PhoneNumber": phone,
                 "CallBackURL": callback_url,
-                "AccountReference": `Event Ticket worth ${amount}`,
-                "TransactionDesc": `Paid for ${Order_ID}`
+                "AccountReference": `WiFi tariff worth ${amount}`,
+                "TransactionDesc": `Paid for WiFi tariff, Order ID: ${Order_ID}`
             }
         }, function (e, response, body) {
             if (e) {
@@ -110,9 +106,7 @@ module.exports.confirmPayment = async (req, res) => {
     try {
 
       const { CheckoutRequestID } = req.body;
-      const originalCheckoutRequestID = CheckoutRequestID.replace(/^___/, ''); // Remove leading underscores
-
-      console.log("CheckoutRequestID being sent to API: ", originalCheckoutRequestID);
+      const originalCheckoutRequestID = CheckoutRequestID.replace(/^___/, '');
 
       const url = "https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query";
       const auth = "Bearer " + req.safaricom_access_token; // Ensure this token is set correctly

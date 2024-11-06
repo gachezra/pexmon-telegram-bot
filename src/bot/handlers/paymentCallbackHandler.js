@@ -63,32 +63,31 @@ const initiatePayment = async (phone, amount, Order_ID) => {
   }
 };
 
-const confirmPayment = async (CheckoutRequestID) => {
+const confirmPayment = async (CheckoutRequestID, ctx) => {
   try {
     // Check if CheckoutRequestID has already been used
     const transaction = await Transaction.findOne({ CheckoutRequestID });
-    console.log(transaction)
-    if (transaction && transaction.isUsed) {
-      console.log('isUsed');
-    }
+    console.log(transaction, CheckoutRequestID)
 
     const url = `${process.env.MPESA_API_URL}/api/confirmPayment`;
     const response = await axios.post(url, { CheckoutRequestID });
 
-    if (!response.data.success) {
-      // Mark the CheckoutRequestID as used
-      await Transaction.updateOne(
-        { CheckoutRequestID },
-        { $set: { isUsed: true, success: true, MpesaReceiptNumber: response.data.MpesaReceiptNumber } }
-      );
-      console.log('Used!')
-      return true;
+    if (response.data.success) {
+      if (transaction && transaction.isUsed) {
+        throw new Error('This Transaction Code has already been used.');
+        return false;
+      } else {
+        await Transaction.updateOne(
+          { CheckoutRequestID },
+          { $set: { success: true, MpesaReceiptNumber: response.data.MpesaReceiptNumber } }
+        );
+        console.log('Used! but no code yet')
+        return true;
+      }
     } else {
       throw new Error(`Payment confirmation failed: ${response.data.resultDesc}`);
     }
-    return true;
   } catch (error) {
-    return true;
     console.error('Error confirming payment:', error);
     throw error;
   }
