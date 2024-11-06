@@ -9,16 +9,17 @@ try {
       unique: true 
     },
     value: {
-      type: String,
+      type: Number,
       required: true,
     },
     isUsed: { 
-      type: Boolean, 
+      type: Boolean,
+      required: false,
       default: false 
     },
     user: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User'
+      type: String,
+      required: false
     }, 
   });
 

@@ -39,17 +39,19 @@ bot.action(/buy_\d+/, async (ctx) => {
   await handlePayment(ctx, action);
 });
 
-bot.action(/confirm_([^_]+)_([^_]+)_(.+)_(.+)/, async (ctx) => {
+bot.action(/confirm_([^_]+)_([^_]+)_(.+)_(.+)_(.+)/, async (ctx) => {
   const ws = ctx.match[1];
   const co = ctx.match[2];
   const id = ctx.match[3];
   const amount = ctx.match[4];
+  const phone = ctx.match[5];
   const CheckoutRequestID = `${ws}_${co}_${id}`; // Concatenates ws, co, and id with underscores
   try {
+    console.log('Phone: ', phone)
     const isPaymentConfirmed = await confirmPayment(CheckoutRequestID);
     if (isPaymentConfirmed) {
       const accessCode = await getUnusedAccessCode(amount);
-      await markAccessCodeAsUsed(accessCode);
+      await markAccessCodeAsUsed(accessCode, phone);
       await ctx.reply(`Payment successful! Your access code is: ${accessCode}.`);
     } else {
       await ctx.reply('Payment not processed. Please try again or contact support.');

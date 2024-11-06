@@ -66,28 +66,22 @@ const initiatePayment = async (phone, amount, Order_ID) => {
 const confirmPayment = async (CheckoutRequestID) => {
   try {
     // Check if CheckoutRequestID has already been used
-    const transaction = await Transaction.findOne({ CheckoutRequestID: CheckoutRequestID });
+    const transaction = await Transaction.findOne({ CheckoutRequestID });
+    console.log(transaction)
     if (transaction && transaction.isUsed) {
-      await ctx.reply('Transaction code already used.', {
-        reply_markup: {
-          inline_keyboard: [[{
-            text: 'Buy Access Codes',
-            callback_data: 'buy_codes'
-          }]]
-        }
-      });
-      throw new Error('This CheckoutRequestID has already been used.');
+      console.log('isUsed');
     }
 
     const url = `${process.env.MPESA_API_URL}/api/confirmPayment`;
     const response = await axios.post(url, { CheckoutRequestID });
 
-    if (response.data.success) {
+    if (!response.data.success) {
       // Mark the CheckoutRequestID as used
       await Transaction.updateOne(
         { CheckoutRequestID },
         { $set: { isUsed: true, success: true, MpesaReceiptNumber: response.data.MpesaReceiptNumber } }
       );
+      console.log('Used!')
       return true;
     } else {
       throw new Error(`Payment confirmation failed: ${response.data.resultDesc}`);
@@ -100,7 +94,7 @@ const confirmPayment = async (CheckoutRequestID) => {
   }
 };
 
-const handlePaymentCallback = async (ctx, paymentResponse, amount) => {
+const handlePaymentCallback = async (ctx, paymentResponse, amount, phone) => {
   try {
     if (paymentResponse && paymentResponse.initiated) {
       const { CheckoutRequestID } = paymentResponse;
@@ -109,7 +103,7 @@ const handlePaymentCallback = async (ctx, paymentResponse, amount) => {
           reply_markup: {
             inline_keyboard: [[{
               text: 'Get Access Code',
-              callback_data: `confirm_${CheckoutRequestID}_${amount}`
+              callback_data: `confirm_${CheckoutRequestID}_${amount}_${phone}`
             }]]
           }
         });
@@ -134,7 +128,7 @@ const handlePayment = async (ctx, action) => {
     const Order_ID = generateOrderId();
 
     const paymentResponse = await initiatePayment(phone, amount, Order_ID);
-    await handlePaymentCallback(ctx, paymentResponse, amount);
+    await handlePaymentCallback(ctx, paymentResponse, amount, phone);
   } catch (error) {
     console.error('Error processing payment:', error);
     await ctx.reply('A payment error occurred. Please try again later.');

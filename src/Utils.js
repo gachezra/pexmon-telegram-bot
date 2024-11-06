@@ -4,15 +4,15 @@ const { isValidPhoneNumber } = require('./inputValidation');
 
 const getUnusedAccessCode = async (amount) => {
   console.log('Value: ', amount)
-  const unusedAccessCode = await AccessCode.findOne({ value: amount });
+  const unusedAccessCode = await AccessCode.findOne({ isUsed: false, value: amount });
   if (!unusedAccessCode) {
     throw new Error('No unused access codes available');
   }
   return unusedAccessCode.code;
 };
 
-const markAccessCodeAsUsed = async (code) => {
-  await AccessCode.updateOne({ code }, { isUsed: true });
+const markAccessCodeAsUsed = async (code, phone) => {
+  await AccessCode.updateOne({ code }, { isUsed: true, user: phone });
 };
 
 const getChatIdFromPhoneNumber = async (phoneNumber) => {
